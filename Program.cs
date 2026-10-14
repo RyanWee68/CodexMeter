@@ -23,6 +23,7 @@ internal static class Program
         }
         using var mutex = new Mutex(true, @"Local\CodexMeter", out var first);
         if (!first) return;
+        Settings.EnsureAutoStart();
         using var monitor = new MonitorForm();
         using var smokeTimer = new System.Windows.Forms.Timer { Interval = 50000 };
         if (args.Contains("--smoke"))
