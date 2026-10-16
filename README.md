@@ -52,7 +52,7 @@ Start-Process ./dist/CodexMeter.exe
 ./Install.ps1
 ```
 
-直接运行 `dist/CodexMeter.exe` 会为当前用户启用开机启动；运行 `Install.ps1` 会启动工具、启用开机启动，并迁移旧版设置。保持 dist 目录位置不变。双击面板打开设置，可以关闭开机启动；右键面板或通知区图标可退出。
+直接运行 `dist/CodexMeter.exe` 会在当前用户的“启动”文件夹创建快捷方式；运行 `Install.ps1` 会启动工具、启用开机启动，并迁移旧版设置。保持 dist 目录位置不变。双击面板打开设置，可以关闭开机启动；右键面板或通知区图标可退出。
 
 如需卸载，先在设置中关闭开机启动，再退出程序并删除程序目录。需要清理设置和日期缓存时，可自行删除 `%LOCALAPPDATA%/CodexMeter`。
 
@@ -109,6 +109,6 @@ Start-Process ./dist/CodexMeter.exe -ArgumentList '--smoke' -Wait
 
 ## 数据存储与接口限制
 
-设置保存在 `%LOCALAPPDATA%/CodexMeter/settings.json`；开机启动使用当前用户的 `HKCU/Software/Microsoft/Windows/CurrentVersion/Run/CodexMeter`。没有计划任务或后台服务。
+设置保存在 `%LOCALAPPDATA%/CodexMeter/settings.json`；开机启动使用当前用户“启动”文件夹中的 `CodexMeter.lnk`。旧版注册表 `Run` 启动项会在更新后移除。没有计划任务或后台服务。
 
 登录和用量协议：[OpenAI Codex App Server 文档](https://learn.chatgpt.com/docs/app-server)，使用 `account/read`、`account/rateLimits/read` 及官方浏览器授权。CLI 对重置卡明细有五秒内部超时；明细缺失时，仅向固定的 ChatGPT 官方明细地址补查，最多等待二十五秒，并核对当前账号邮箱及接口返回的账号 ID（如有）。临时读取 CLI 已保存的授权信息，仅在内存中使用，不另存、不记录、不跟随 HTTP 重定向。此补查地址属于官方客户端内部接口，变更或失败时回退到已验证日期缓存。

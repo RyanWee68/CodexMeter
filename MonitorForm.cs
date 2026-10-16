@@ -195,10 +195,18 @@ internal sealed class MonitorForm : Form
         settingsForm = form;
         var info = new Label { Text = $"自动跟随本机 Codex 登录账号\n{account}\n\n每 5 分钟自动刷新；单击刷新，双击打开设置。", AutoSize = false, Bounds = new(20, 15, 470, 90) };
         var auto = new CheckBox { Text = "开机自动启动", Checked = Settings.AutoStart, AutoSize = true, Location = new(20, 112) };
+        var restoringAuto = false;
         auto.CheckedChanged += (_, _) =>
         {
+            if (restoringAuto) return;
             try { Settings.AutoStart = auto.Checked; }
-            catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException or IOException) { MessageBox.Show(form, "无法修改开机启动设置。", "Codex 用量条"); }
+            catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException or IOException or System.Runtime.InteropServices.COMException or InvalidOperationException)
+            {
+                restoringAuto = true;
+                auto.Checked = Settings.AutoStart;
+                restoringAuto = false;
+                MessageBox.Show(form, "无法修改开机启动设置。", "Codex 用量条");
+            }
         };
         var path = new TextBox { Bounds = new(20, 169, 365, 26), Text = Settings.Load().CodexPath ?? "" };
         var pathLabel = new Label { Text = "Codex CLI 路径（留空则自动查找）", AutoSize = true, Location = new(20, 146) };
@@ -207,7 +215,7 @@ internal sealed class MonitorForm : Form
         {
             using var dialog = new OpenFileDialog { Filter = "Codex CLI|codex.exe", Title = "选择官方 Codex CLI" };
             if (dialog.ShowDialog(form) != DialogResult.OK) return;
-            try { new Settings(dialog.FileName).Save(); path.Text = dialog.FileName; await RefreshUsage(); }
+            try { (Settings.Load() with { CodexPath = dialog.FileName }).Save(); path.Text = dialog.FileName; await RefreshUsage(); }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { MessageBox.Show(form, "保存设置失败。", "Codex 用量条"); }
         };
         path.ReadOnly = true;

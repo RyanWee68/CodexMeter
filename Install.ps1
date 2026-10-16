@@ -8,12 +8,18 @@ if ((Test-Path -LiteralPath $legacySettings) -and -not (Test-Path -LiteralPath $
     Copy-Item -LiteralPath $legacySettings -Destination $meterSettings
 }
 $monitorRunKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
-if (-not (Test-Path -LiteralPath $monitorRunKey)) { New-Item -Path $monitorRunKey | Out-Null }
-New-ItemProperty -Path $monitorRunKey -Name 'CodexMeter' -Value ('"' + $monitorExe + '"') -PropertyType String -Force | Out-Null
+$startupLink = Join-Path ([Environment]::GetFolderPath('Startup')) 'CodexMeter.lnk'
+$shell = New-Object -ComObject WScript.Shell
+$shortcut = $shell.CreateShortcut($startupLink)
+$shortcut.TargetPath = $monitorExe
+$shortcut.WorkingDirectory = Split-Path $monitorExe
+$shortcut.Save()
+if ($shell.CreateShortcut($startupLink).TargetPath -ne $monitorExe) { throw 'Auto start shortcut verification failed.' }
 New-Item -ItemType Directory -Path (Split-Path $meterSettings) -Force | Out-Null
 $settings = if (Test-Path -LiteralPath $meterSettings) { Get-Content -LiteralPath $meterSettings -Raw | ConvertFrom-Json } else { [pscustomobject]@{} }
 $settings | Add-Member -NotePropertyName AutoStartDisabled -NotePropertyValue $false -Force
 $settings | ConvertTo-Json -Compress | Set-Content -LiteralPath $meterSettings -Encoding UTF8
+Remove-ItemProperty -Path $monitorRunKey -Name 'CodexMeter' -ErrorAction SilentlyContinue
 Remove-ItemProperty -Path $monitorRunKey -Name 'CodexMonitor' -ErrorAction SilentlyContinue
 $legacyExe = Join-Path $PSScriptRoot 'dist/CodexMonitor.exe'
 Get-Process CodexMonitor -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $legacyExe } | Stop-Process

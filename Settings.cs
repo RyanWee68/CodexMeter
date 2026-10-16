@@ -20,6 +20,7 @@ internal sealed record Settings(string? CodexPath = null, bool AutoStartDisabled
     }
 
     private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
+    private static readonly string ShortcutPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Startup), "CodexMeter.lnk");
     private static string? ExecutablePath =>
         string.Equals(Path.GetFileName(Environment.ProcessPath), "CodexMeter.exe", StringComparison.OrdinalIgnoreCase)
             ? Environment.ProcessPath
@@ -29,21 +30,36 @@ internal sealed record Settings(string? CodexPath = null, bool AutoStartDisabled
     {
         try
         {
-            if (!Load().AutoStartDisabled && !AutoStart && ExecutablePath != null) AutoStart = true;
+            if (!Load().AutoStartDisabled && ExecutablePath != null) AutoStart = true;
         }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.SecurityException or System.Runtime.InteropServices.COMException or InvalidOperationException)
         {
         }
     }
 
     public static bool AutoStart
     {
-        get { using var key = Registry.CurrentUser.OpenSubKey(RunKey); return key?.GetValue("CodexMeter") != null; }
+        get
+        {
+            if (File.Exists(ShortcutPath)) return true;
+            using var key = Registry.CurrentUser.OpenSubKey(RunKey);
+            return key?.GetValue("CodexMeter") != null;
+        }
         set
         {
-            using var key = Registry.CurrentUser.CreateSubKey(RunKey);
-            if (value && ExecutablePath != null) key.SetValue("CodexMeter", $"\"{ExecutablePath}\"");
-            else key.DeleteValue("CodexMeter", false);
+            if (value)
+            {
+                var exe = ExecutablePath ?? throw new InvalidOperationException("请运行已发布的 CodexMeter.exe。");
+                var shellType = Type.GetTypeFromProgID("WScript.Shell") ?? throw new InvalidOperationException("无法创建开机启动快捷方式。");
+                dynamic shell = Activator.CreateInstance(shellType)!;
+                dynamic shortcut = shell.CreateShortcut(ShortcutPath);
+                shortcut.TargetPath = exe;
+                shortcut.WorkingDirectory = Path.GetDirectoryName(exe);
+                shortcut.Save();
+            }
+            else File.Delete(ShortcutPath);
+            using var key = Registry.CurrentUser.OpenSubKey(RunKey, writable: true);
+            key?.DeleteValue("CodexMeter", false);
             (Load() with { AutoStartDisabled = !value }).Save();
         }
     }
